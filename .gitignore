@@ -35,3 +35,7 @@ Thumbs.db
 # Local extra plots
 local_extra_plots/
 
+# Logs
+logs/
+training_logs/
+*.log
