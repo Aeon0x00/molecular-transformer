@@ -1,16 +1,15 @@
+import os
+import json
+from datetime import datetime
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import os
-import json
-from datetime import datetime
 
 from Tokenizer import SMILES_tokenizator
 from dataset import MOSESDataset, SMILESDataset, collate_fn
 from model_decoder import DecoderTransformer
 
-# Гиперпараметры
 d_model = 512
 n_layers = 8
 n_heads = 8
@@ -41,7 +40,6 @@ training_log = {
     'epochs': []
 }
 
-# 1. Загрузка данных
 moses = MOSESDataset()
 train_smiles = moses.load_train()
 test_smiles = moses.load_test()
@@ -53,21 +51,17 @@ test_smiles = test_smiles[:test_size]
 
 training_log['dataset'] = {'train_size': len(train_smiles), 'test_size': len(test_smiles)}
 
-# 2. Токенизатор
 tokenizer = SMILES_tokenizator(train_smiles)
 vocab_size = len(tokenizer.vocab)
 training_log['vocab_size'] = vocab_size
 
-# 3. Датасеты и загрузчики
 train_dataset = SMILESDataset(train_smiles, tokenizer)
 test_dataset = SMILESDataset(test_smiles, tokenizer)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
-# 4. Модель
 model = DecoderTransformer(vocab_size, d_model, n_layers, n_heads, max_len=128).to(device)
-total_params = sum(p.numel() for p in model.parameters())
-training_log['model_params'] = total_params
+training_log['model_params'] = sum(p.numel() for p in model.parameters())
 
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.vocab['[PAD]'])
@@ -90,10 +84,10 @@ def run_epoch(loader, train=True):
 
 best_val_loss = float('inf')
 for epoch in range(epochs):
-    epoch_start = datetime.now()
+    t0 = datetime.now()
     train_loss = run_epoch(train_loader, train=True)
     val_loss = run_epoch(test_loader, train=False)
-    epoch_time = (datetime.now() - epoch_start).total_seconds()
+    elapsed = (datetime.now() - t0).total_seconds()
 
     epoch_log = {
         'epoch': epoch + 1,
@@ -102,20 +96,19 @@ for epoch in range(epochs):
         'train_ppl': float(torch.exp(torch.tensor(train_loss)).item()),
         'val_ppl': float(torch.exp(torch.tensor(val_loss)).item()),
         'overfit_gap': float(val_loss - train_loss),
-        'time_seconds': float(epoch_time),
+        'time_seconds': float(elapsed),
         'is_best': val_loss < best_val_loss
     }
     training_log['epochs'].append(epoch_log)
 
     if val_loss < best_val_loss:
         best_val_loss = val_loss
-        checkpoint = {
+        torch.save({
             'model': model.state_dict(),
             'tokenizer': tokenizer.vocab,
             'config': {'d_model': d_model, 'n_layers': n_layers, 'n_heads': n_heads, 'vocab_size': vocab_size},
             'training_log': training_log
-        }
-        torch.save(checkpoint, 'best_model_logged.pt')
+        }, 'best_model_logged.pt')
 
     with open(log_file, 'w') as f:
         json.dump(training_log, f, indent=2)

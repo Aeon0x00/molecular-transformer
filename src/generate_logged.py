@@ -1,16 +1,15 @@
+import os
+import argparse
 import torch
 import torch.nn.functional as F
 from model_decoder import build_decoder_transformer
 from validate import validate_smiles
 from Tokenizer import SMILES_tokenizator
-import argparse
-import os
 
 def generate_molecule(model, tokenizer, device, max_len=128, temperature=1.0, top_k=50):
-    sos = tokenizer.char2idx['[SOS]']
-    eos = tokenizer.char2idx['[EOS]']
-    pad = tokenizer.char2idx['[PAD]']
-
+    sos = tokenizer.vocab['[SOS]']
+    eos = tokenizer.vocab['[EOS]']
+    pad = tokenizer.vocab['[PAD]']
     gen = [sos]
 
     with torch.no_grad():
@@ -34,19 +33,18 @@ def generate_molecule(model, tokenizer, device, max_len=128, temperature=1.0, to
     return tokenizer.decode(gen[1:])
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate SMILES molecules')
-    parser.add_argument('--checkpoint', type=str, default='checkpoints/best_model_logged.pt', help='Checkpoint path')
-    parser.add_argument('--num', type=int, default=10, help='Number of molecules to generate')
-    parser.add_argument('--temp', type=float, default=1.0, help='Sampling temperature')
-    parser.add_argument('--top_k', type=int, default=50, help='Top-k sampling parameter')
-    parser.add_argument('--max_len', type=int, default=128, help='Maximum sequence length')
-    parser.add_argument('--validate', action='store_true', help='Validate SMILES with RDKit')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--checkpoint', type=str, default='checkpoints/best_model_logged.pt')
+    parser.add_argument('--num', type=int, default=10)
+    parser.add_argument('--temp', type=float, default=1.0)
+    parser.add_argument('--top_k', type=int, default=50)
+    parser.add_argument('--max_len', type=int, default=128)
+    parser.add_argument('--validate', action='store_true')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
     if not os.path.exists(args.checkpoint):
-        print(f"Error: checkpoint '{args.checkpoint}' not found.")
+        print(f"File not found: {args.checkpoint}")
         return
 
     checkpoint = torch.load(args.checkpoint, map_location=device)
@@ -64,16 +62,13 @@ def main():
     model.load_state_dict(checkpoint['model'])
     model.eval()
 
-    generated = []
     valid_count = 0
-
     for i in range(args.num):
         smiles = generate_molecule(model, tokenizer, device, args.max_len, args.temp, args.top_k)
-        generated.append(smiles)
         if args.validate:
-            is_valid = validate_smiles(smiles)
-            valid_count += int(is_valid)
-            print(f"{i+1}. {smiles} - {'valid' if is_valid else 'invalid'}")
+            ok = validate_smiles(smiles)
+            valid_count += int(ok)
+            print(f"{i+1}. {smiles} - {'valid' if ok else 'invalid'}")
         else:
             print(f"{i+1}. {smiles}")
 
