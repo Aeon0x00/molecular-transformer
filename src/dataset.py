@@ -7,44 +7,33 @@ from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 
 class MOSESDataset:
-    MOSES_URL = "https://media.githubusercontent.com/media/molecularsets/moses/master/data/dataset_v1.csv"
+    TRAIN_URL = "https://media.githubusercontent.com/media/molecularsets/moses/master/data/train.csv"
+    TEST_URL = "https://media.githubusercontent.com/media/molecularsets/moses/master/data/test.csv"
 
     def __init__(self, data_dir='./moses_data'):
         self.data_dir = data_dir
         os.makedirs(data_dir, exist_ok=True)
-
         self.train_path = os.path.join(data_dir, 'train.csv')
         self.test_path = os.path.join(data_dir, 'test.csv')
 
-        if not self._check_files_exist():
-            self._download_and_prepare()
-
-    def _check_files_exist(self):
-        return os.path.exists(self.train_path) and os.path.exists(self.test_path)
-
-    def _download_and_prepare(self):
-        full_csv_path = os.path.join(self.data_dir, 'dataset_v1.csv')
-
-        if not os.path.exists(full_csv_path):
-            response = requests.get(self.MOSES_URL, stream=True)
-            total_size = int(response.headers.get('content-length', 0))
-
-            with open(full_csv_path, 'wb') as f:
-                with tqdm(total=total_size, unit='B', unit_scale=True, desc='Downloading') as pbar:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                        pbar.update(len(chunk))
-
-        df = pd.read_csv(full_csv_path)
-        df[df['SPLIT'] == 'train'][['SMILES']].to_csv(self.train_path, index=False)
-        df[df['SPLIT'] == 'test'][['SMILES']].to_csv(self.test_path, index=False)
-        os.remove(full_csv_path)
+    def _download(self, url, path):
+        if os.path.exists(path):
+            return
+        response = requests.get(url, stream=True)
+        total_size = int(response.headers.get('content-length', 0))
+        with open(path, 'wb') as f, tqdm(total=total_size, unit='B', unit_scale=True, desc=f'Downloading {os.path.basename(path)}') as pbar:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+                    pbar.update(len(chunk))
 
     def load_train(self):
-        return pd.read_csv(self.train_path)['SMILES'].tolist()
+        self._download(self.TRAIN_URL, self.train_path)
+        return pd.read_csv(self.train_path)['SMILES'].dropna().tolist()
 
     def load_test(self):
-        return pd.read_csv(self.test_path)['SMILES'].tolist()
+        self._download(self.TEST_URL, self.test_path)
+        return pd.read_csv(self.test_path)['SMILES'].dropna().tolist()
 
 class SMILESDataset(Dataset):
     def __init__(self, smiles_list, tokenizer, max_len=128):
@@ -68,13 +57,20 @@ class SMILESDataset(Dataset):
         src = [self.sos_idx] + encoded + [self.eos_idx]
         tgt = encoded + [self.eos_idx]
 
-        return torch.tensor(src), torch.tensor(tgt)
+        return torch.tensor(src, dtype=torch.long), torch.tensor(tgt, dtype=torch.long)
 
 def collate_fn(batch):
     src_batch, tgt_batch = zip(*batch)
-    src_batch = pad_sequence(src_batch, batch_first=True, padding_value=0)
-    tgt_batch = pad_sequence(tgt_batch, batch_first=True, padding_value=0)
-    return src_batch, tgt_batch
+    src_padded = pad_sequence(src_batch, batch_first=True, padding_value=0)
+    tgt_padded = pad_sequence(tgt_batch, batch_first=True, padding_value=0)
+
+    # Causal triangular and padding mask
+    pad_mask = (src_padded != 0).unsqueeze(1).unsqueeze(2)
+    seq_len = src_padded.size(1)
+    causal_mask = torch.tril(torch.ones(seq_len, seq_len, device=src_padded.device)).bool()
+    mask = pad_mask & causal_mask
+
+    return src_padded, tgt_padded, mask
 
 if __name__ == '__main__':
     dataset = MOSESDataset()

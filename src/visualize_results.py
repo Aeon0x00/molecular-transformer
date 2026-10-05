@@ -76,21 +76,27 @@ def plot_training_metrics(checkpoint_path):
     fig, axes = plt.subplots(1, 2, figsize=(16, 5))
 
     # Информация о модели
-    epoch = checkpoint.get('epoch', 'N/A')
-    val_loss = checkpoint.get('val_loss', 'N/A')
+    vocab = checkpoint.get('tokenizer') or checkpoint.get('tokenizer_vocab') or {}
+    training_log = checkpoint.get('training_log', {})
+    epochs_data = training_log.get('epochs', [])
+    if epochs_data:
+        epoch = epochs_data[-1].get('epoch', len(epochs_data))
+        val_loss = epochs_data[-1].get('val_loss', 'N/A')
+    else:
+        epoch = checkpoint.get('epoch', 'N/A')
+        val_loss = checkpoint.get('val_loss', checkpoint.get('best_val_loss', 'N/A'))
 
     axes[0].text(0.5, 0.7, f'Эпоха: {epoch}', ha='center', fontsize=16, weight='bold')
     axes[0].text(0.5, 0.5, f'Validation Loss: {val_loss:.4f}' if isinstance(val_loss, float) else f'Validation Loss: {val_loss}',
                  ha='center', fontsize=14)
-    axes[0].text(0.5, 0.3, f'Размер словаря: {len(checkpoint["tokenizer_vocab"])}', ha='center', fontsize=14)
+    axes[0].text(0.5, 0.3, f'Размер словаря: {len(vocab)}', ha='center', fontsize=14)
     axes[0].axis('off')
     axes[0].set_title('Информация о модели', fontsize=16, weight='bold', pad=20)
 
     # Статистика словаря
-    vocab = checkpoint['tokenizer_vocab']
     special_tokens = ['[PAD]', '[SOS]', '[EOS]', '[UNK]']
     special_count = sum(1 for token in special_tokens if token in vocab)
-    regular_count = len(vocab) - special_count
+    regular_count = max(0, len(vocab) - special_count)
 
     axes[1].pie([regular_count, special_count],
                 labels=['Обычные токены', 'Специальные токены'],
@@ -251,10 +257,10 @@ def main():
     print("=" * 80)
 
     # Пути к файлам
-    checkpoint_path = 'checkpoints/best_model.pt'
-    log_file = 'generation_200.log'
-    output_dir = Path('visualization_results')
-    output_dir.mkdir(exist_ok=True)
+    checkpoint_path = 'checkpoints/best_model_logged.pt' if os.path.exists('checkpoints/best_model_logged.pt') else 'checkpoints/best_model.pt'
+    log_file = 'logs/generation_200.log' if os.path.exists('logs/generation_200.log') else 'generation_200.log'
+    output_dir = Path('assets/visualization_results') if os.path.exists('assets') else Path('visualization_results')
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Метрики обучения
     print("\n[1/6] Визуализация метрик обучения...")

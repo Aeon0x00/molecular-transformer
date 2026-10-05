@@ -2,8 +2,13 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 
+import os
+import glob
+
 # Загрузка данных
-with open('training_logs/training_20260527_014141.json', 'r') as f:
+possible_files = glob.glob('logs/training_logs/*.json') + glob.glob('training_logs/*.json')
+log_file = possible_files[-1] if possible_files else 'training_logs/training_20260527_014141.json'
+with open(log_file, 'r') as f:
     data = json.load(f)
 
 epochs_data = data['epochs']
@@ -73,7 +78,7 @@ ax3.axhline(y=0, color='red', linestyle='--', linewidth=2, alpha=0.5, label='И�
 ax3.fill_between(epochs, 0, overfit_gap, where=(np.array(overfit_gap) < 0), alpha=0.2, color='green', label='Underfitting')
 ax3.fill_between(epochs, 0, overfit_gap, where=(np.array(overfit_gap) >= 0), alpha=0.2, color='red', label='Overfitting')
 ax3.set_xlabel('Эпоха', fontsize=12, fontweight='bold')
-ax3.set_ylabel('Train Loss - Val Loss', fontsize=12, fontweight='bold')
+ax3.set_ylabel('Val Loss - Train Loss', fontsize=12, fontweight='bold')
 ax3.set_title('Анализ переобучения', fontsize=13, fontweight='bold', pad=15)
 ax3.legend(fontsize=10, frameon=True, shadow=True)
 ax3.grid(True, alpha=0.3, linestyle='--')
