@@ -6,15 +6,15 @@
 
 Сгенерированные молекулы (Top 20):
 
-![Top 20 Molecules](assets/visualization_results/molecules_top20.png)
+![Top 20 Molecules](assets/molecules_top20.png)
 
 Сгенерированные молекулы (Random 20):
 
-![Random 20 Molecules](assets/visualization_results/molecules_random20.png)
+![Random 20 Molecules](assets/molecules_random20.png)
 
 Распределение молекулярных свойств (MW, LogP, HBA, HBD, TPSA, RotBonds, Rings, Aromatic):
 
-![Molecular Properties](assets/visualization_results/molecular_properties.png)
+![Molecular Properties](assets/molecular_properties.png)
 
 ## Установка
 
