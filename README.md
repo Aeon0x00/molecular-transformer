@@ -4,18 +4,17 @@
 
 ## Результаты
 
-Примеры сгенерированных молекул:
+Сгенерированные молекулы (Top 20):
 
-![Сгенерированные молекулы](assets/generation_results.png)
+![Top 20 Molecules](assets/visualization_results/molecules_top20.png)
 
-Метрики:
-- Валидность (RDKit): ~93%
-- Уникальность: ~98%
-- Новизна: ~89%
+Сгенерированные молекулы (Random 20):
 
-Кривые обучения:
+![Random 20 Molecules](assets/visualization_results/molecules_random20.png)
 
-![Графики обучения](assets/training_results_beautiful.png)
+Распределение молекулярных свойств (MW, LogP, HBA, HBD, TPSA, RotBonds, Rings, Aromatic):
+
+![Molecular Properties](assets/visualization_results/molecular_properties.png)
 
 ## Установка
 
@@ -30,15 +29,14 @@ pip install -r requirements.txt
 python src/train_standalone.py
 ```
 
-Генерация молекул из чекпоинта:
+Генерация молекул:
 ```bash
-python src/generate_logged.py --num 50 --temp 0.8 --top_k 20 --validate
+python src/generate_logged.py --num 50 --validate
 ```
 
-Построение графиков и 2D-структур:
+Построение графиков и структур молекул:
 ```bash
 python src/visualize_results.py
-python src/create_beautiful_plots.py
 ```
 
 ## Структура
@@ -48,5 +46,5 @@ python src/create_beautiful_plots.py
 - `src/dataset.py` — загрузка датасета MOSES
 - `src/train_standalone.py` — обучение модели
 - `src/generate_logged.py` — генерация молекул
-- `src/visualize_results.py` — визуализация молекул и свойств через RDKit
-- `src/create_beautiful_plots.py` — построение графиков Loss и Perplexity
+- `src/visualize_results.py` — визуализация молекул и свойств
+- `src/validate.py` — валидация через RDKit
